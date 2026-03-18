@@ -109,9 +109,8 @@ class WorldSenseDataset(Dataset):
         message = [
             dict(type='text', value=prompt),
             dict(type='video', value=video_path),
-            dict(type='audio', value=video_path),  
         ]
-
+        
         meta = {
             "video_id": video_id,
             "task_name": task_name,
@@ -161,6 +160,8 @@ def get_lr(args,processor,input_ids):
     v_r = 0
     a_l = 1e9
     a_r = 0
+    cnt_v = 0
+
     if 'qwen2.5_omni' in args.model_path:
         a = '<|AUDIO|>'
         v = '<|VIDEO|>'
@@ -172,8 +173,10 @@ def get_lr(args,processor,input_ids):
            v_lst.append(i)
            v_l = min(v_l,i)
            v_r = max(v_r,i)
+           cnt_v +=1
         elif processor.decode([input_ids[i]]) == a:
            a_lst.append(i)
+           
     return v_lst,a_lst
 
 def load_video(video_path, max_frames_num, fps=1, force_sample=False):
@@ -182,7 +185,9 @@ def load_video(video_path, max_frames_num, fps=1, force_sample=False):
         vr = decord.VideoReader(video_path, ctx=decord.cpu(0), num_threads=1)
         total_frame_num = len(vr)
         video_time = total_frame_num / vr.get_avg_fps()
-        fps = round(vr.get_avg_fps() / fps)
+        fps = round(vr.get_avg_fps() /fps)
+        fps = 10
+        
         frame_idx = [i for i in range(0, len(vr), fps)]
         frame_time = [i / fps for i in frame_idx]
         if len(frame_idx) > max_frames_num or force_sample:
@@ -209,6 +214,8 @@ def TextImageAudioMatching(processor,question, images,path_to_audio,nframes,topk
     tokens = word_tokenize(question)
     tags = pos_tag(tokens)
     text = [word for word, tag in tags if tag in ['NN', 'NNS', 'NNP', 'NNPS','JJ']]
+    if len(text) == 0:
+        text = tokens
     
     aclp = AudioCLIP(pretrained='/mnt/data2/yangmrl/project/video2text/AudioCLIP-master/assets/AudioCLIP-Full-Training.pt')
     aclp.eval()
@@ -247,13 +254,13 @@ def TextImageAudioMatching(processor,question, images,path_to_audio,nframes,topk
         start += CHUNK_SIZE
         
     audio = torch.stack([audio_transforms(track.reshape(1, -1)) for track, _ in audio])
-    # standard channel-first shape [batch x channels x height x width] torch.stack([image_transforms(image)])
     images = torch.stack([image_transforms(image) for image in images])
     
     with torch.no_grad():
         ((audio_features, _, _), _), _ = aclp(audio=audio)
         ((_, image_features, _), _), _ = aclp(image=images)
         ((_, _, text_features), _), _ = aclp(text=text)
+        
         audio_features = audio_features / torch.linalg.norm(audio_features, dim=-1, keepdim=True)
         image_features = image_features / torch.linalg.norm(image_features, dim=-1, keepdim=True)
         text_features = text_features / torch.linalg.norm(text_features, dim=-1, keepdim=True)
@@ -270,8 +277,14 @@ def TextImageAudioMatching(processor,question, images,path_to_audio,nframes,topk
         a_score = torch.mean(logits_audio_text,dim = -1)
         v_score = torch.mean(logits_image_text,dim = -1)
         print(a_score,v_score)
-    return indices_a,indices_v,a_score,v_score, CHUNK_SIZE
+    return indices_a,indices_v,a_score,v_score, CHUNK_SIZE,logits_image_text,logits_audio_text
 
+def calculate_time_group(video_id,T,h,w,temporal_patch_size = 2,fps = 2):
+    
+    group_v = video_id//(h*w)
+    current_frame_id = group_v*(temporal_patch_size) 
+    time_v = current_frame_id/fps 
+    return time_v, group_v,current_frame_id
 
 def main():
     parser = argparse.ArgumentParser(description="inference on WorldSense benchmark")
@@ -291,7 +304,6 @@ def main():
     print(f"Loading model: {args.model_path}")
     model, processor = _load_model(args.model_path)
     actual_model = model  
-
     os.makedirs(args.output_dir, exist_ok=True)
 
     device = torch.device("cuda:3")
@@ -301,12 +313,13 @@ def main():
     for batch_idx, (messages_batch, indices, metas_batch) in enumerate(dataloader):
         for message, original_idx, meta in zip(messages_batch, indices, metas_batch):
             cnt+=1
-            # if cnt<=1631:
-            #     continue
+            
             video_id = meta["video_id"]
             task_name = meta["task_name"]
-            # if video_id != 'FnOIAada':
-            #     continue
+            
+            if video_id != 'KQIbbWyN' or task_name != 'task1': 
+                continue
+            
             print(f"Processing WorldSense {video_id} | task={task_name} ...")
             duration = meta['video_duration']
             seconds = 0
@@ -327,40 +340,65 @@ def main():
                     })
                 elif item['type'] == 'video':
                     content.append({
-                        'type': 'video',
+                        'type': 'video', 'video': item['value'],
                         'min_pixels': MIN_PIXELS, 'max_pixels': MAX_PIXELS,
-                        'total_pixels': TOTAL_PIXELS, 'max_frames': nframes, 
+                        'total_pixels': TOTAL_PIXELS, 'max_frames': NFRAMES, 
                         'video_start':0,
-                        'video_end': nframes
+                        'video_end': seconds,
                     })
             
             video_pth = '/mnt/data2/yangmrl/project/video2text/test_data/worldsense/videos/'
             audio_pth = '/mnt/data2/yangmrl/project/video2text/test_data/worldsense/audios/'
-            visual, frame_idx, frame_time, video_time = load_video(video_pth+video_id+".mp4", NFRAMES)
+            # visual, frame_idx, frame_time, video_time = load_video(video_pth+video_id+".mp4", NFRAMES)
             audio_pth += video_id+".wav"
-            indices_a,indices_v,a_score,v_score,CHUNK_SIZE = TextImageAudioMatching(processor, meta['question'], visual, audio_pth, min(nframes,seconds))
-            
-            values_a,_ = torch.sort(indices_a)
-            values_v,_ = torch.sort(indices_v)
-            if a_score>v_score:
-                for i in range(len(values_a)):
-                    if values_a[i] >= len(visual):
-                        values_a[i] = len(visual) - 1
-                visual = visual[values_a]
-                audio_indices = values_a
-            else:
-               visual = visual[values_v]
-               audio_indices = values_v
-            
-            videos = visual
-            height, width, _ = visual[0].shape
 
-            visual = [Image.fromarray(v).convert("RGB").resize((width, height), Image.Resampling.LANCZOS) for v in visual]
-            show_frames(visual)
-            
             new_message = [{'role': 'user', 'content': content}]
             text = processor.apply_chat_template([new_message], tokenize=False, add_generation_prompt=True)
-            audios, images, _ = process_mm_info(new_message, use_audio_in_video=False)
+            audios, images, videos = process_mm_info(new_message, use_audio_in_video=True)
+            inputs = processor(
+                text=text,
+                audio=audios,
+                images=images,
+                videos=videos,
+                return_tensors="pt",
+                padding=False,
+                use_audio_in_video=True
+            )
+            visual = (
+                torch.nn.functional.interpolate(videos[0], size=(364,644))
+                .permute(0,2,3,1)
+                .cpu()
+                .numpy()
+                .astype("uint8")
+            )
+            show_frames(visual)
+
+            indices_a,indices_v,a_score,v_score,CHUNK_SIZE,logits_v,logits_a = TextImageAudioMatching(processor, meta['question'], visual, audio_pth, min(nframes,seconds))
+            values_a,_ = torch.sort(indices_a)
+            values_v,_ = torch.sort(indices_v)
+            
+            video_first = a_score < v_score
+
+            inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
+            for k, v in inputs.items():
+                if isinstance(v, torch.Tensor) and v.dtype.is_floating_point:
+                    inputs[k] = v.to(dtype=model_dtype)
+            v_lst,a_lst = get_lr(args,processor,inputs['input_ids'][0]) #26 * 46; 32 patches merge
+            actual_model.eval()
+            chunk = 0
+            for i in range(len(v_lst)-1):
+                if v_lst[i+1]-v_lst[i]!=1:
+                    chunk+=1
+            # for i in range(len(a_lst)-1):
+            #     if a_lst[i+1]-a_lst[i]!=1:
+            #         print(i+1)
+            # print(len(v_lst),len(a_lst),chunk+1)
+            if not video_first:
+                videos[0] = videos[0][values_a]
+                audio_indices = values_a
+            else:
+               videos[0] = videos[0][values_v]
+               audio_indices = values_v
             
             audios_new = list()
             mp = defaultdict(bool)
@@ -374,23 +412,6 @@ def main():
                     # audios_new.append(audios[0][i])
                     audios[0][i] = 0
             # audios[0]= np.array(audios_new)
-
-            inputs = processor(
-                text=text,
-                audio=audios,
-                images=images,
-                videos=videos,
-                return_tensors="pt",
-                padding=False,
-            )
-         
-            inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
-            for k, v in inputs.items():
-                if isinstance(v, torch.Tensor) and v.dtype.is_floating_point:
-                    inputs[k] = v.to(dtype=model_dtype)
-                    
-            actual_model.eval()
-           
             with torch.no_grad():
                 past_key_values = None
                 past_key_values_audio = None
@@ -406,6 +427,7 @@ def main():
                             use_cache=True,
                             output_hidden_states=True,
                             return_dict=True,
+                            use_audio_in_video=True
                         )
                     else:
                         current_inputs = {
@@ -420,6 +442,7 @@ def main():
                             use_cache=True,
                             output_hidden_states=False,
                             return_dict=True,
+                            use_audio_in_video=True
                         )
                     
                     hidden_states = outputs.hidden_states   
@@ -476,3 +499,4 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings('ignore')
     main()
+    
