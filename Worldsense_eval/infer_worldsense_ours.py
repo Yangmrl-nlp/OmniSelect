@@ -186,7 +186,6 @@ def load_video(video_path, max_frames_num, fps=1, force_sample=False):
         total_frame_num = len(vr)
         video_time = total_frame_num / vr.get_avg_fps()
         fps = round(vr.get_avg_fps() /fps)
-        fps = 10
         
         frame_idx = [i for i in range(0, len(vr), fps)]
         frame_time = [i / fps for i in frame_idx]
@@ -317,8 +316,8 @@ def main():
             video_id = meta["video_id"]
             task_name = meta["task_name"]
             
-            if video_id != 'KQIbbWyN' or task_name != 'task1': 
-                continue
+            # if video_id != 'KQIbbWyN' or task_name != 'task1': 
+            #     continue
             
             print(f"Processing WorldSense {video_id} | task={task_name} ...")
             duration = meta['video_duration']
@@ -364,6 +363,7 @@ def main():
                 padding=False,
                 use_audio_in_video=True
             )
+            
             visual = (
                 torch.nn.functional.interpolate(videos[0], size=(364,644))
                 .permute(0,2,3,1)
@@ -412,6 +412,7 @@ def main():
                     # audios_new.append(audios[0][i])
                     audios[0][i] = 0
             # audios[0]= np.array(audios_new)
+            
             with torch.no_grad():
                 past_key_values = None
                 past_key_values_audio = None
