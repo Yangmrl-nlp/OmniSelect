@@ -57,7 +57,7 @@ class WorldSenseDataset(Dataset):
         gt_answer = task["answer"]
 
         alphas = [chr(65 + i) + ". " for i in range(len(candidates))]
-        options_str = "\n".join([a + c for a, c in zip(alphas, candidates)])
+        options_str = "\n".join([c for c in candidates])
 
         prompt = TEST_PROMPT_WORLDSENSE.format(
             question=question,
@@ -69,9 +69,8 @@ class WorldSenseDataset(Dataset):
             raise FileNotFoundError(f"Video not found: {video_path}")
         
         message = [
-            dict(type='text', value=prompt),
             dict(type='video', value=video_path),
-            dict(type='audio', value=video_path),  
+            dict(type='text', value=prompt),
         ]
 
         meta = {
@@ -226,6 +225,7 @@ def main():
     device = torch.device("cuda:3")
     model_dtype = actual_model.dtype
     cnt = 0
+    fl = 1
     for batch_idx, (messages_batch, indices, metas_batch) in enumerate(dataloader):
         for message, original_idx, meta in zip(messages_batch, indices, metas_batch):
             cnt+=1
@@ -233,8 +233,12 @@ def main():
             #     continue
             video_id = meta["video_id"]
             task_name = meta["task_name"]
-            if video_id != 'GSLoYRyv':
-                continue
+            
+            # if video_id != 'KGOBsdJm' and fl:
+            #     continue
+            # else:
+            #     fl = 0
+
             print(f"Processing WorldSense {video_id} | task={task_name} ...")
             duration = meta['video_duration']
             seconds = 0
@@ -262,14 +266,19 @@ def main():
                         'audio_start':0,
                         'audio_end': seconds
                     })
-
-            new_message = [{'role': 'user', 'content': content}]
-
-            text = processor.apply_chat_template([new_message], tokenize=False, add_generation_prompt=True)
             
-            audios, images, videos = process_mm_info(new_message,use_audio_in_video = False)
+            new_message = []
+            new_message.append({
+                "role": "system",
+                "content": [
+                    {"type": "text", "text": "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech."}
+                ],
+            })
+            new_message.append({'role': 'user', 'content': content})
+            text = processor.apply_chat_template(new_message, tokenize=False, add_generation_prompt=True)
+            # print(text)
+            audios, images, videos = process_mm_info(new_message,use_audio_in_video = True)
 
-        
             inputs = processor(
                 text=text,
                 audio=audios,
@@ -277,6 +286,7 @@ def main():
                 videos=videos,
                 return_tensors="pt",
                 padding=False,
+                use_audio_in_video = True
             )
          
             inputs = {k: v.to(device) if torch.is_tensor(v) else v for k, v in inputs.items()}
@@ -288,44 +298,41 @@ def main():
             actual_model.eval()
             
             with torch.no_grad():
-                past_key_values = None
-                past_key_values_audio = None
-                generated_ids = inputs['input_ids'].clone().to(device)
-                new_token_list = []
+                # past_key_values = None
+                # past_key_values_audio = None
+                # generated_ids = inputs['input_ids'].clone().to(device)
+                # new_token_list = []
 
-                for step in range(MAX_NEW_TOKENS):
-                    if step == 0:
-                        outputs = actual_model.thinker(
-                            **inputs,
-                            output_attentions=True,  
-                            past_key_values=past_key_values,
-                            use_cache=True,
-                            output_hidden_states=False,
-                            return_dict=True,
-                        )
-                    else:
-                        current_inputs = {
-                            'input_ids': inputs['input_ids'].to(device),
-                            'attention_mask': inputs['attention_mask'].to(device),
-                        }
-                        outputs = actual_model.thinker(
-                            **current_inputs,
-                            output_attentions=True,
-                            past_key_values=past_key_values,
-                            use_cache=True,
-                            output_hidden_states=False,
-                            return_dict=True,
-                        )
+                # for step in range(MAX_NEW_TOKENS):
+                #     if step == 0:
+                #         outputs = actual_model.thinker(
+                #             **inputs,
+                #             output_attentions=False,  
+                #             past_key_values=past_key_values,
+                #             use_cache=True,
+                #             output_hidden_states=False,
+                #             return_dict=True,
+                #             use_audio_in_video = True
+                #         )
+                #     else:
+                #         current_inputs = {
+                #             'input_ids': inputs['input_ids'].to(device),
+                #             'attention_mask': inputs['attention_mask'].to(device),
+                #         }
+                #         outputs = actual_model.thinker(
+                #             **current_inputs,
+                #             output_attentions=False,
+                #             past_key_values=past_key_values,
+                #             use_cache=True,
+                #             output_hidden_states=False,
+                #             return_dict=True,
+                #             use_audio_in_video = True
+                #         )
+                        
+                #     next_token_logits = outputs.logits[:, -1, :]
+                #     next_token_id = next_token_logits.argmax(dim=-1, keepdim=True).to(device)
                     
-                    hidden_states = outputs.hidden_states   
-                    attention_weight = outputs.attentions
-                    attn_lstlayer = attention_weight[-1]
-
-
-                    next_token_logits = outputs.logits[:, -1, :]
-                    next_token_id = next_token_logits.argmax(dim=-1, keepdim=True).to(device)
-                    
-                    v_lst,a_lst = get_lr(args,processor,inputs['input_ids'][0])
+                #     v_lst,a_lst = get_lr(args,processor,inputs['input_ids'][0])
                     
                     # if step==0:
                     #     entropy = []
@@ -358,29 +365,24 @@ def main():
                     # print(processor.decode(inputs_audio['input_ids'][0]))
                     # print(next_token_id,next_token_id_audio)
                     # next_token_id = next_token_id.squeeze(0)
-                    generated_ids = torch.cat([generated_ids, next_token_id], dim=1).to(device)
-                    past_key_values = outputs.past_key_values
+                    # generated_ids = torch.cat([generated_ids, next_token_id], dim=1).to(device)
+                    # past_key_values = outputs.past_key_values
                     # past_key_values_audio = outputs_audio.past_key_values
-                    new_token_list.append(next_token_id.item())
+                    # new_token_list.append(next_token_id.item())
 
-                    attention_mask = torch.cat(
-                        [inputs['attention_mask'], torch.ones((inputs['attention_mask'].shape[0], 1), dtype=inputs['attention_mask'].dtype, device=device)],
-                        dim=-1
-                    )
-                    inputs['attention_mask'] = attention_mask
-                    inputs['input_ids'] = next_token_id
-                    
-                    # attention_mask_audio = torch.cat(
-                    #     [inputs_audio['attention_mask'], torch.ones((inputs_audio['attention_mask'].shape[0], 1), dtype=inputs_audio['attention_mask'].dtype, device=device)],
+                    # attention_mask = torch.cat(
+                    #     [inputs['attention_mask'], torch.ones((inputs['attention_mask'].shape[0], 1), dtype=inputs['attention_mask'].dtype, device=device)],
                     #     dim=-1
                     # )
-                    # inputs_audio['attention_mask'] = attention_mask_audio
-                    # inputs_audio['input_ids'] = next_token_id
+                    # inputs['attention_mask'] = attention_mask
+                    # inputs['input_ids'] = next_token_id
 
-                    if next_token_id.item() == processor.tokenizer.eos_token_id:
-                        break
-
-            response = processor.tokenizer.decode(new_token_list, skip_special_tokens=True).strip()
+                    # if next_token_id.item() == processor.tokenizer.eos_token_id:
+                    #     break
+                    generated_ids = model.generate(**inputs, thinker_max_new_tokens = 2, use_audio_in_video=True, return_audio=False, temperature=1)
+                    
+            prompt_length = inputs["input_ids"].shape[1]
+            response = processor.tokenizer.decode(generated_ids[0][prompt_length:], skip_special_tokens=True)
 
             result = {
                 "video_id": meta["video_id"],
@@ -401,7 +403,7 @@ def main():
 
             print(f"{video_id} | {task_name} | pred: {response} | gt: {meta['gt_answer']}")
 
-            del inputs, generated_ids, outputs
+            del inputs, generated_ids
             torch.cuda.empty_cache()
             gc.collect()
 
