@@ -41,7 +41,7 @@ OmniSelect significantly reduces multimodal token redundancy while preserving re
 ## 🏗️ Framework
 
 <p align="center">
-  <img src="assets/framework.png" width="90%">
+  <img src="assets/OmniSelect.png" width="90%">
 </p>
 
 OmniSelect consists of two stages:
