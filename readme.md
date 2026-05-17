@@ -1,6 +1,6 @@
 <div align="center">
 
-# <img src="assets/logo.png" width="48" style="vertical-align: -10px;"> OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models
+# <img src="assets/logo_converted.svg" width="48" style="vertical-align: -10px;"> OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models
 
 <p>
 🚀 Training-Free · 🎧 Audio-Visual Reasoning · ⚡ Efficient OmniLLMs
