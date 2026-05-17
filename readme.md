@@ -1,6 +1,6 @@
 <div align="center">
 
-<div style="display: inline-block; width: 80px; height: 60px; overflow: hidden; vertical-align: middle;"><img src="assets/logo_converted.svg" width="80" align="middle"><h3>OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models</h3>
+<h3>OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models</h3>
 
 
 <p>
