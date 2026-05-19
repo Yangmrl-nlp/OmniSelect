@@ -7,6 +7,7 @@
 🚀 Training-Free · 🎧 Audio-Visual Reasoning · ⚡ Efficient OmniLLMs
 </p>
 
+[![arXiv](https://img.shields.io/badge/arXiv-Paper-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2605.18041)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
@@ -156,11 +157,14 @@ bash /path/to/scripts/infer_omnivideo.sh
 ## 📖 Citation
 
 ```bibtex
-@article{omniselect2026,
-  title={OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models},
-  author={Anonymous Authors},
-  journal={NeurIPS 2026},
-  year={2026}
+@misc{yang2026omniselectdynamicmodalityawaretoken,
+      title={OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models}, 
+      author={Morunliu Yang and Ruotao Xu and Le Li and Yue Wang and Jianxin Zhang and Juntao Li and Yihang Lou and Siwei Feng and Peifeng Li},
+      year={2026},
+      eprint={2605.18041},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2605.18041}, 
 }
 ```
 
