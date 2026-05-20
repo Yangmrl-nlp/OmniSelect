@@ -229,15 +229,6 @@ def main():
     parser.add_argument('--interactive', action='store_true', help="Enable interactive mode for case study")
     args = parser.parse_args()
 
-    # # --- 1. 设置对比路径 ---
-    # OURS_RESULTS_DIR = "/mnt/data2/yangmrl/project/video2text/eval/Worldsense_eval/results/frame_128/qwen2.5_omni_3b_ours_30/"
-    # ZIP_RESULTS_DIR = "/mnt/data2/yangmrl/project/video2text/eval/Worldsense_eval/results/frame_128/qwen2.5_omni_3b_omnizip_30/"
-    # PLOT_DIR = "/mnt/data2/yangmrl/project/video2text/eval/Worldsense_eval/results/prune_plot"
-    
-    # # --- 2. 自动获取待分析列表 ---
-    # win_cases = get_win_cases(OURS_RESULTS_DIR, ZIP_RESULTS_DIR)
-    # print(f"Detected {len(win_cases)} winning cases. Starting visualization loop...")
-
     dataset = WorldSenseDataset(
         json_path=args.worldsense_json,
     )
@@ -356,8 +347,8 @@ def main():
                     "token_id2group": token_id2group,
                     "v_lst" : v_lst,
                     "a_lst" : a_lst,
-                    "video_id": video_id,    # 新增：传入视频ID (如 zOWIYSyZ)
-                    "task_name": task_name ,  # 新增：传入任务名 (如 task1)
+                    "video_id": video_id,    
+                    "task_name": task_name ,  
                     "visual" : visual    
                 }
             else:
@@ -380,24 +371,7 @@ def main():
                         temperature=1,
                         prune_need = prune_need,
                     )
-            # if args.interactive:
-            #     print(f"\n>>> Visualization generated in {PLOT_DIR}")
-            #     print(f">>> Files: omniselect_{video_id}_{task_name}_grid.png, _single.png, _line.png")
-                
-            #     user_choice = input("Keep these images? [y] to keep, [n] to delete, [q] to quit: ").lower()
-                
-            #     if user_choice == 'n':
-            #         # 删除刚刚生成的 3 张图
-            #         for suffix in ['_grid.png', '_single.png', '_line.png']:
-            #             f_path = os.path.join(PLOT_DIR, f"omniselect_{video_id}_{task_name}{suffix}")
-            #             if os.path.exists(f_path):
-            #                 os.remove(f_path)
-            #         print(f"Cleaned up {video_id}_{task_name}")
-            #     elif user_choice == 'q':
-            #         print("Exiting...")
-            #         return
-            #     else:
-            #         print(f"Saved {video_id}_{task_name} to collection.")
+            
             torch.cuda.synchronize()
             end_time = time.time()
 
