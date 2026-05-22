@@ -157,14 +157,11 @@ bash /path/to/scripts/infer_omnivideo.sh
 ## 📖 Citation
 
 ```bibtex
-@misc{yang2026omniselectdynamicmodalityawaretoken,
-      title={OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models}, 
-      author={Morunliu Yang and Ruotao Xu and Le Li and Yue Wang and Jianxin Zhang and Juntao Li and Yihang Lou and Siwei Feng and Peifeng Li},
-      year={2026},
-      eprint={2605.18041},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2605.18041}, 
+@article{yang2026omniselect,
+  title={OmniSelect: Dynamic Modality-Aware Token Compression for Efficient Omni-modal Large Language Models},
+  author={Yang, Morunliu and Xu, Ruotao and Li, Le and Wang, Yue and Zhang, Jianxin and Li, Juntao and Lou, Yihang and Feng, Siwei and Li, Peifeng},
+  journal={arXiv preprint arXiv:2605.18041},
+  year={2026}
 }
 ```
 
