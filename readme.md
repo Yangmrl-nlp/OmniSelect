@@ -17,8 +17,7 @@
 
 ## 📌 Overview
 
-OmniSelect is a **training-free modality-adaptive token compression framework** for Omni-modal Large Language Models (OmniLLMs).  
-Unlike existing approaches that rely on fixed modality guidance, OmniSelect dynamically determines whether **audio**, **video**, or **both modalities** are more important for the current query.
+OmniSelect is a **training-free modality-adaptive token compression framework** for Omni-modal Large Language Models (OmniLLMs). Unlike existing approaches that rely on fixed modality guidance, OmniSelect dynamically determines whether **audio**, **video**, or **both modalities** are more important for the current query.
 
 The framework introduces:
 
