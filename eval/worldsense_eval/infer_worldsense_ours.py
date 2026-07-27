@@ -177,6 +177,11 @@ def TextImageAudioMatching(args,question,video_id, nframes,images, path_to_audio
     
     pre_a = a_score
     pre_v = v_score
+    cha = abs(int(v_score) - int(a_score))
+    if cha <= args.theta:
+        theta = 0
+    else:
+        theta = 5
     if abs(int(v_score) - int(a_score)) <= args.theta or len(keywords) == 0:
         a_score = v_score
     
